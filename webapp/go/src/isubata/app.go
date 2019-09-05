@@ -57,11 +57,11 @@ func init() {
 	}
 	db_user := os.Getenv("ISUBATA_DB_USER")
 	if db_user == "" {
-		db_user = "root"
+		db_user = "isucon"
 	}
 	db_password := os.Getenv("ISUBATA_DB_PASSWORD")
-	if db_password != "" {
-		db_password = ":" + db_password
+	if db_password == "" {
+		db_password = ":isucon"
 	}
 
 	dsn := fmt.Sprintf("%s%s@tcp(%s:%s)/isubata?parseTime=true&loc=Local&charset=utf8mb4",
@@ -436,6 +436,33 @@ func queryHaveRead(userID, chID int64) (int64, error) {
 	return h.MessageID, nil
 }
 
+func queryHaveReads(userID int64) (*map[int64]int64, error) {
+	type HaveRead struct {
+		UserID    int64     `db:"user_id"`
+		ChannelID int64     `db:"channel_id"`
+		MessageID int64     `db:"message_id"`
+		UpdatedAt time.Time `db:"updated_at"`
+		CreatedAt time.Time `db:"created_at"`
+	}
+
+	var h []HaveRead
+
+	err := db.Select(&h, "SELECT * FROM haveread WHERE user_id = ?", userID)
+
+	if err == sql.ErrNoRows {
+		return &map[int64]int64{}, nil
+	} else if err != nil {
+		return &map[int64]int64{}, err
+	}
+
+	ret := map[int64]int64{}
+	for _, v := range h {
+		ret[v.ChannelID] = v.MessageID
+	}
+
+	return &ret, nil
+}
+
 func fetchUnread(c echo.Context) error {
 	userID := sessUserID(c)
 	if userID == 0 {
@@ -451,10 +478,17 @@ func fetchUnread(c echo.Context) error {
 
 	resp := []map[string]interface{}{}
 
+	haveReads, err := queryHaveReads(userID)
+
+	if err != nil {
+		return err
+	}
+
 	for _, chID := range channels {
-		lastID, err := queryHaveRead(userID, chID)
-		if err != nil {
-			return err
+
+		lastID, ok := (*haveReads)[chID]
+		if !ok {
+			lastID = 0
 		}
 
 		var cnt int64
