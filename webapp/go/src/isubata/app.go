@@ -438,16 +438,13 @@ func queryHaveRead(userID, chID int64) (int64, error) {
 
 func queryHaveReads(userID int64) (*map[int64]int64, error) {
 	type HaveRead struct {
-		UserID    int64     `db:"user_id"`
 		ChannelID int64     `db:"channel_id"`
 		MessageID int64     `db:"message_id"`
-		UpdatedAt time.Time `db:"updated_at"`
-		CreatedAt time.Time `db:"created_at"`
 	}
 
 	var h []HaveRead
 
-	err := db.Select(&h, "SELECT * FROM haveread WHERE user_id = ?", userID)
+	err := db.Select(&h, "SELECT channel_id, message_id FROM haveread WHERE user_id = ?", userID)
 
 	if err == sql.ErrNoRows {
 		return &map[int64]int64{}, nil
@@ -696,10 +693,17 @@ func postProfile(c echo.Context) error {
 	}
 
 	if avatarName != "" && len(avatarData) > 0 {
-		_, err := db.Exec("INSERT INTO image (name, data) VALUES (?, ?)", avatarName, avatarData)
-		if err != nil {
-			return err
-		}
+		fmt.Println("filename", avatarName)
+		file, err := os.Create("/home/ubuntu/isubata/webapp/public/icons/" + avatarName)
+		fmt.Println(err)
+		defer file.Close()
+		_, err = file.Write(avatarData)
+		//fmt.Println(err)
+
+		//_, err := db.Exec("INSERT INTO image (name, data) VALUES (?, ?)", avatarName, avatarData)
+		//if err != nil {
+		//	return err
+		//}
 		_, err = db.Exec("UPDATE user SET avatar_icon = ? WHERE id = ?", avatarName, self.ID)
 		if err != nil {
 			return err
