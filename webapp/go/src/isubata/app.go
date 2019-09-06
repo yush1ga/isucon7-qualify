@@ -49,7 +49,7 @@ func init() {
 
 	db_host := os.Getenv("ISUBATA_DB_HOST")
 	if db_host == "" {
-		db_host = "127.0.0.1"
+		db_host = "13.115.220.46"
 	}
 	db_port := os.Getenv("ISUBATA_DB_PORT")
 	if db_port == "" {
@@ -124,8 +124,8 @@ type Message struct {
 
 func queryMessages(chanID, lastID int64) ([]Message, error) {
 	msgs := []Message{}
-	err := db.Select(&msgs, "SELECT * FROM message WHERE id > ? AND channel_id = ? ORDER BY id DESC LIMIT 100",
-		lastID, chanID)
+	err := db.Select(&msgs, "SELECT * FROM message WHERE channel_id = ? AND id > ? ORDER BY id DESC LIMIT 100",
+		chanID, lastID)
 	return msgs, err
 }
 
@@ -489,15 +489,18 @@ func fetchUnread(c echo.Context) error {
 		}
 
 		var cnt int64
-		if lastID > 0 {
-			err = db.Get(&cnt,
-				"SELECT COUNT(*) as cnt FROM message WHERE channel_id = ? AND ? < id",
-				chID, lastID)
-		} else {
-			err = db.Get(&cnt,
-				"SELECT COUNT(*) as cnt FROM message WHERE channel_id = ?",
-				chID)
-		}
+		err = db.Get(&cnt,
+			"SELECT COUNT(*) as cnt FROM message WHERE channel_id = ? AND ? < id",
+			chID, lastID)
+		//if lastID > 0 {
+		//	err = db.Get(&cnt,
+		//		"SELECT COUNT(*) as cnt FROM message WHERE channel_id = ? AND ? < id",
+		//		chID, lastID)
+		//} else {
+		//	err = db.Get(&cnt,
+		//		"SELECT COUNT(*) as cnt FROM message WHERE channel_id = ?",
+		//		chID)
+		//}
 		if err != nil {
 			return err
 		}
