@@ -600,9 +600,36 @@ func getHistory(c echo.Context) error {
 		return err
 	}
 
+	usersSet := map[int64]interface{}{}
+	for _, m := range messages {
+		usersSet[m.UserID] = nil
+	}
+
+
+	query := "SELECT * FROM user WHERE id in ("
+	cnt2 := 0
+	for k, _ := range usersSet{
+		if cnt2 == len(usersSet) - 1 {
+			query += strconv.FormatInt(k, 10) + ")"
+		} else {
+			query += strconv.FormatInt(k, 10) + ","
+		}
+		cnt2 += 1
+	}
+
+	fmt.Println(query)
+
+	var users []User
+	db.Select(&users, query)
+
+	usersMap := map[int64]User{}
+	for _, v := range users {
+		usersMap[v.ID] = v
+	}
+
 	mjson := make([]map[string]interface{}, 0)
 	for i := len(messages) - 1; i >= 0; i-- {
-		r, err := jsonifyMessage(messages[i])
+		r, err := jsonifyMessage2(messages[i], &usersMap)
 		if err != nil {
 			return err
 		}
