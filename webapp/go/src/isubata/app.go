@@ -350,6 +350,22 @@ func postMessage(c echo.Context) error {
 	return c.NoContent(204)
 }
 
+func jsonifyMessage2(m Message, users *map[int64]User) (map[string]interface{}, error) {
+	//u := User{}
+	//err := db.Get(&u, "SELECT name, display_name, avatar_icon FROM user WHERE id = ?",
+	//	m.UserID)
+	//if err != nil {
+	//	return nil, err
+	//}
+
+	r := make(map[string]interface{})
+	r["id"] = m.ID
+	r["user"] = (*users)[m.UserID]
+	r["date"] = m.CreatedAt.Format("2006/01/02 15:04:05")
+	r["content"] = m.Content
+	return r, nil
+}
+
 func jsonifyMessage(m Message) (map[string]interface{}, error) {
 	u := User{}
 	err := db.Get(&u, "SELECT name, display_name, avatar_icon FROM user WHERE id = ?",
@@ -386,10 +402,37 @@ func getMessage(c echo.Context) error {
 		return err
 	}
 
+	usersSet := map[int64]interface{}{}
+	for _, m := range messages {
+		usersSet[m.UserID] = nil
+	}
+
+
+	query := "SELECT * FROM user WHERE id in ("
+	cnt := 0
+	for k, _ := range usersSet{
+		if cnt == len(usersSet) - 1 {
+			query += strconv.FormatInt(k, 10) + ")"
+		} else {
+			query += strconv.FormatInt(k, 10) + ","
+		}
+		cnt += 1
+	}
+
+	fmt.Println(query)
+
+	var users []User
+	db.Select(&users, query)
+
+	usersMap := map[int64]User{}
+	for _, v := range users {
+		usersMap[v.ID] = v
+	}
+
 	response := make([]map[string]interface{}, 0)
 	for i := len(messages) - 1; i >= 0; i-- {
 		m := messages[i]
-		r, err := jsonifyMessage(m)
+		r, err := jsonifyMessage2(m, &usersMap)
 		if err != nil {
 			return err
 		}
