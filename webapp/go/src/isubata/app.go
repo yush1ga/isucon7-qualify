@@ -49,7 +49,7 @@ func init() {
 
 	db_host := os.Getenv("ISUBATA_DB_HOST")
 	if db_host == "" {
-		db_host = "13.115.220.46"
+		db_host = "13.231.195.101"
 	}
 	db_port := os.Getenv("ISUBATA_DB_PORT")
 	if db_port == "" {
@@ -418,8 +418,6 @@ func getMessage(c echo.Context) error {
 		}
 		cnt += 1
 	}
-
-	fmt.Println(query)
 
 	var users []User
 	db.Select(&users, query)
