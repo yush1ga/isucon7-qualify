@@ -6,12 +6,15 @@ import (
 	"database/sql"
 	"encoding/binary"
 	"fmt"
+	"github.com/garyburd/redigo/redis"
 	"html/template"
 	"io"
 	"io/ioutil"
 	"log"
 	"math/rand"
 	"net"
+
+	//"net"
 	"net/http"
 	"os"
 	"strconv"
@@ -210,6 +213,10 @@ func getInitialize(c echo.Context) error {
 	db.MustExec("DELETE FROM channel WHERE id > 10")
 	db.MustExec("DELETE FROM message WHERE id > 10000")
 	db.MustExec("DELETE FROM haveread")
+	return c.String(204, "")
+}
+
+func getInitialize2(c echo.Context) error {
 	return c.String(204, "")
 }
 
@@ -444,6 +451,11 @@ func getMessage(c echo.Context) error {
 			" VALUES (?, ?, ?, NOW(), NOW())"+
 			" ON DUPLICATE KEY UPDATE message_id = ?, updated_at = NOW()",
 			userID, chanID, messages[0].ID, messages[0].ID)
+		var midoku int64
+		db.Get(&midoku,
+			"SELECT COUNT(*) as cnt FROM message WHERE channel_id = ? AND ? < id",
+			chanID, userID)
+		conn.Do("SET", fmt.Sprintf("%d-%d", userID, messages[0].ID, ), strconv.FormatInt(midoku, 10))
 		if err != nil {
 			return err
 		}
@@ -531,10 +543,15 @@ func fetchUnread(c echo.Context) error {
 			lastID = 0
 		}
 
-		var cnt int64
-		err = db.Get(&cnt,
-			"SELECT COUNT(*) as cnt FROM message WHERE channel_id = ? AND ? < id",
-			chID, lastID)
+		cnt, err := redis.Int64(conn.Do("GET", fmt.Sprint("%d-%d", userID, chID)))
+		if err != nil {
+			err = db.Get(&cnt,
+				"SELECT COUNT(*) as cnt FROM message WHERE channel_id = ? AND ? < id",
+				chID, lastID)
+			conn.Do("SET", fmt.Sprintf("%d-%d", userID, lastID), strconv.FormatInt(cnt, 10))
+		}
+
+
 		//if lastID > 0 {
 		//	err = db.Get(&cnt,
 		//		"SELECT COUNT(*) as cnt FROM message WHERE channel_id = ? AND ? < id",
@@ -831,7 +848,15 @@ func tRange(a, b int64) []int64 {
 	return r
 }
 
+var conn redis.Conn
 func main() {
+	con, err := redis.Dial("tcp", "172.31.29.151:6379")
+	if err != nil {
+		panic(err)
+	}
+	defer con.Close()
+	conn = con
+
 	e := echo.New()
 
 	// domain socket setting
