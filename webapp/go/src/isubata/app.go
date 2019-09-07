@@ -11,6 +11,7 @@ import (
 	"io/ioutil"
 	"log"
 	"math/rand"
+	"net"
 	"net/http"
 	"os"
 	"strconv"
@@ -23,6 +24,7 @@ import (
 	"github.com/labstack/echo"
 	"github.com/labstack/echo-contrib/session"
 	"github.com/labstack/echo/middleware"
+	//"github.com/garyburd/redigo/redis"
 )
 
 const (
@@ -831,6 +833,19 @@ func tRange(a, b int64) []int64 {
 
 func main() {
 	e := echo.New()
+
+	// domain socket setting
+	// only app 1
+	socketFile := "/home/ubuntu/isubata.sock"
+	os.Remove(socketFile)
+
+	l, err := net.Listen("unix", socketFile)
+	if err != nil {
+		e.Logger.Fatal(err)
+	}
+
+	e.Listener = l
+
 	funcs := template.FuncMap{
 		"add":    tAdd,
 		"xrange": tRange,
